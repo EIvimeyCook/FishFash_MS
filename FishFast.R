@@ -32,26 +32,30 @@ library(Hmisc)
 ##############################
 
 #load data
-fin_len <- read_csv("FinGrowth.csv") %>%
+findat <- read_csv("FinGrowth.csv") %>%
   janitor::clean_names()
 
 #growth/day fasting#####
 
+#if convergence issues with random slope - change to method = BFGS in glmmTMBControl.
+#Here and elswehre when using type 3 Anova - remember to set sums to zero - 
+ # e.g. through contrasts=list(treatment="contr.sum", sex="contr.sum"))
+
 #three-way
-m1 <- glmmTMB(fin_len ~ treatment*sex*day_num  + (1|rep/id2), data = findat %>% filter(day_num == "3" | day_num == "7" |day_num == "15" ), REML = T)
+m1 <- glmmTMB(fin_len ~ treatment*sex*day_num  + (1+day_num|rep/id2), data = findat %>% filter(day_num == "3" | day_num == "7" |day_num == "15" ), REML = T)
 summary(m1)
 car::Anova(m1, type = "III")
 emtrends(m1, specs = pairwise~treatment*sex, var = "day_num", type = "response", adjust = "none")
 tab_model(m1,transform = NULL, show.ci = F, show.se = T, show.r2 = F, show.stat = T, show.icc = F)
 
 #male-one
-m2 <- glmmTMB(fin_len ~ treatment + day_num  + (1|rep/id2), data = findat %>% filter(sex == "male")  %>% filter(day_num == "3" | day_num == "7" |day_num == "15" ), REML = T)
+m2 <- glmmTMB(fin_len ~ treatment + day_num  + (1+day_num|rep/id2), data = findat %>% filter(sex == "male")  %>% filter(day_num == "3" | day_num == "7" |day_num == "15" ), REML = T)
 summary(m2)
 car::Anova(m2, type = "III")
 emtrends(m2, specs = pairwise~treatment, var = "day_num", type = "response", adjust = "none")
 
 #female-one
-m3 <- glmmTMB(fin_len ~ treatment + day_num  + (1|rep/id2), data = findat %>% filter(sex == "female") %>% filter(day_num == "3" | day_num == "7" |day_num == "15" ), REML = T)
+m3 <- glmmTMB(fin_len ~ treatment + day_num  + (1+day_num|rep/id2), data = findat %>% filter(sex == "female") %>% filter(day_num == "3" | day_num == "7" |day_num == "15" ), REML = T)
 summary(m3)
 car::Anova(m3, type = "III")
 emtrends(m3, specs = pairwise~treatment, var = "day_num", type = "response", adjust = "none")
@@ -59,7 +63,7 @@ emtrends(m3, specs = pairwise~treatment, var = "day_num", type = "response", adj
 #growth/day refeeding#####
 
 #two-way
-m4 <- glmmTMB(fin_len ~ treatment + sex + day_num + treatment:sex + treatment:day_num + sex:day_num + (1|rep/id2), data = findat  %>% filter(day_num != "3" & day_num != "7 "& day_num != "15"), REML = T)
+m4 <- glmmTMB(fin_len ~ treatment + sex + day_num + treatment:sex + treatment:day_num + sex:day_num + (1+day_num|rep/id2), data = findat  %>% filter(day_num != "3" & day_num != "7 "& day_num != "15"), REML = T)
 summary(m4)
 car::Anova(m4, type = "III")
 emtrends(m4, specs = pairwise~treatment, var = "day_num", type = "response", adjust = "none")
@@ -67,13 +71,14 @@ emtrends(m4, specs = pairwise~sex, var = "day_num", type = "response", adjust = 
 tab_model(m4,transform = NULL, show.ci = F, show.se = T, show.r2 = F, show.stat = T, show.icc = F)
 
 #male-one
-m5 <- glmmTMB(fin_len ~ treatment + day_num  + (1|rep/id2), data = findat %>% filter(sex == "male") %>% filter(day_num != "3" & day_num != "7" & day_num != "15"), REML = T)
+m5 <- glmmTMB(fin_len ~ treatment + day_num  + (1+day_num|rep/id2), data = findat %>% filter(sex == "male") %>% filter(day_num != "3" & day_num != "7" & day_num != "15"), REML = T)
 summary(m5)
 car::Anova(m5, type = "III")
 emtrends(m5, specs = pairwise~treatment, var = "day_num", type = "response", adjust = "none")
 
 #female-two
-m6 <- glmmTMB(fin_len ~ treatment*day_num  +  (1|rep/id2), data = findat %>% filter(sex == "female") %>% filter(day_num != "3" & day_num != "7" & day_num != "15"), REML = T)
+#wont converge with BFGS with both random effects - change ot just indvidual.
+m6 <- glmmTMB(fin_len ~ treatment*day_num  +  (1|rep) + (1+day_num|id2), data = findat %>% filter(sex == "female") %>% filter(day_num != "3" & day_num != "7" & day_num != "15"), REML = T)
 summary(m6)
 car::Anova(m6, type = "III")
 emtrends(m6, specs = pairwise~treatment, var = "day_num", type = "response", adjust = "none")
@@ -84,10 +89,10 @@ labs1 <- c("3", "7","15")
 labs2 <- c("21", "28", "35")
 
 #for graphing
-m1a <- glmmTMB(fin_len ~ treatment*day_num  + (1|rep/id2), data = findat %>% filter(sex == "female") %>% filter(day_num == "3" | day_num == "7" |day_num == "15" ), REML = T)
-m1b <- glmmTMB(fin_len ~ treatment*day_num  + (1|rep/id2), data = findat %>% filter(sex == "male")  %>% filter(day_num == "3" | day_num == "7" |day_num == "15" ), REML = T)
-m1c <- glmmTMB(fin_len ~ treatment*day_num  + (1|rep/id2), data = findat %>% filter(sex == "male") %>% filter(day_num != "3" & day_num != "7" & day_num != "15"), REML = T)
-m1d <- glmmTMB(fin_len ~ treatment*day_num  +  (1|rep/id2), data = findat %>% filter(sex == "female") %>% filter(day_num != "3" & day_num != "7" & day_num != "15"), REML = T)
+m1a <- glmmTMB(fin_len ~ treatment*day_num  + (1+day_num|rep/id2), data = findat %>% filter(sex == "female") %>% filter(day_num == "3" | day_num == "7" |day_num == "15" ), REML = T)
+m1b <- glmmTMB(fin_len ~ treatment*day_num  + (1+day_num|rep/id2), data = findat %>% filter(sex == "male")  %>% filter(day_num == "3" | day_num == "7" |day_num == "15" ), REML = T)
+m1c <- glmmTMB(fin_len ~ treatment*day_num  + (1+day_num|rep/id2), data = findat %>% filter(sex == "male") %>% filter(day_num != "3" & day_num != "7" & day_num != "15"), REML = T)
+m1d <- glmmTMB(fin_len ~ treatment*day_num  +  (1+day_num|rep/id2), data = findat %>% filter(sex == "female") %>% filter(day_num != "3" & day_num != "7" & day_num != "15"), REML = T)
 
 
 FemFast <- as.tibble(ggeffects:: ggemmeans(m1a, terms = c("day_num", "treatment"))) %>%
@@ -146,10 +151,19 @@ ggplot2::ggsave("FinGrowth.png", width = 8, height = 8, device = "png", dpi= 600
 ##############################
 
 #load data
-repodat <- read_csv("ReproductionLong.csv") %>%
+reprodat <- read_csv("ReproductionLong.csv") %>%
   janitor::clean_names()
 
 #ASR fasting#####
+
+#bias adjustment for emmeans with type response
+  #use VarCorr to get variance from random effects
+    #lme4::VarCorr(m7)
+  #work out total variance for sigma 
+    #bias_model = sqrt(0.57343289^2 + 0.00008816^2)
+  #then rerun emmeans with bias adjuastment
+    #emmeans(m7, specs = pairwise ~ treatment, type = "response",  bias.adjust = T, sigma = bias_model)
+
 
 #female-one
 m7 <- glmmTMB(total_no ~ day_14 + treatment + (1|replicate/id), data = reprodat %>% filter(sex == "Female") %>% filter(day_14 == "7" | day_14 == "15"), family = "nbinom2", zi = ~1, REML = T)
