@@ -27,6 +27,8 @@ library(segmented)
 library(sjPlot)
 library(Hmisc)
 
+#remember to relevel treatment for fed to be the baseline.
+
 ##############################
 # Fin Growth Growth
 ##############################
@@ -395,15 +397,13 @@ tab_model(m14 ,transform = NULL, show.ci = F, show.se = T, show.r2 = F, show.sta
 #male-two
 m15 <- glmmTMB(lifespan ~ treatment*day +  (1|replicate/id), family = "binomial", data = ehDat1 %>% filter(sex == "Male") %>% filter(day != "7" & day != "15"), REML = T)
 summary(m15)
-car::Anova(m15, type = "III")
-emtrends(m15, specs = pairwise~treatment, var = "day", type = "response", adjust = "none") 
+emtrends(m15, specs = pairwise~treatment, var = "day", type = "response") 
 tab_model(m15 ,transform = NULL, show.ci = F, show.se = T, show.r2 = F, show.stat = T, show.icc = F)
 
 #female-two
 m16<- glmmTMB(lifespan ~ treatment*day +  (1|replicate/id), family = "binomial", data = ehDat1 %>% filter(sex == "Female") %>% filter(day != "7" & day != "15"), REML = T)
 summary(m16)
-car::Anova(m16, type = "III")
-emtrends(m16, specs = pairwise~treatment, var = "day", type = "response", adjust = "none")
+emtrends(m16, specs = pairwise~treatment, var = "day", type = "response")
 tab_model(m16 ,transform = NULL, show.ci = F, show.se = T, show.r2 = F, show.stat = T, show.icc = F)
 
 
@@ -468,9 +468,7 @@ ggplot2::ggsave("Egg Prob.png", width = 8, height = 8, device = "png", dpi= 600,
 
 #load data
 spermdat <- read_csv("Dryad_Sperm.csv") %>%
-  janitor::clean_names() %>%
-  mutate(treat=fct_relevel(treat,c("Fed", "Fasted"))) %>%
-  arrange(treat)
+  janitor::clean_names()
 
 #Sperm fasting######
 
