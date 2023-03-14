@@ -32,7 +32,7 @@ library(Hmisc)
 ##############################
 
 #load data
-findat <- read_csv("FinGrowth.csv") %>%
+findat <- read_csv("Dryad_FinGrowth.csv") %>%
   janitor::clean_names()
 
 #growth/day fasting#####
@@ -44,55 +44,68 @@ findat <- read_csv("FinGrowth.csv") %>%
 #three-way
 m1 <- glmmTMB(fin_len ~ treatment*sex*day_num  + (1+day_num|rep/id2), data = findat %>% filter(day_num == "3" | day_num == "7" |day_num == "15" ), REML = T)
 summary(m1)
-car::Anova(m1, type = "III")
-emtrends(m1, specs = pairwise~treatment*sex, var = "day_num", type = "response", adjust = "none")
+car::Anova(glmmTMB(fin_len ~ treatment*sex*day_num  + (1 + day_num|rep/id2), 
+                   data = findat %>% filter(day_num == "3" | day_num == "7" |day_num == "15"), 
+                   REML = T, contrasts=list(treatment="contr.sum",
+                                            sex="contr.sum")), type = "III")
+emtrends(m1, specs = pairwise~treatment|sex, var = "day_num", type = "response")
 tab_model(m1,transform = NULL, show.ci = F, show.se = T, show.r2 = F, show.stat = T, show.icc = F)
 
 #male-one
 m2 <- glmmTMB(fin_len ~ treatment + day_num  + (1+day_num|rep/id2), data = findat %>% filter(sex == "male")  %>% filter(day_num == "3" | day_num == "7" |day_num == "15" ), REML = T)
 summary(m2)
-car::Anova(m2, type = "III")
-emtrends(m2, specs = pairwise~treatment, var = "day_num", type = "response", adjust = "none")
 
 #female-one
 m3 <- glmmTMB(fin_len ~ treatment + day_num  + (1+day_num|rep/id2), data = findat %>% filter(sex == "female") %>% filter(day_num == "3" | day_num == "7" |day_num == "15" ), REML = T)
 summary(m3)
-car::Anova(m3, type = "III")
-emtrends(m3, specs = pairwise~treatment, var = "day_num", type = "response", adjust = "none")
 
 #growth/day refeeding#####
 
+#three-way
+m4a <- glmmTMB(fin_len ~ treatment*sex*day_num + (1+day_num|rep/id2), data = findat  %>% filter(day_num != "3" & day_num != "7 "& day_num != "15"), REML = T)
+summary(m4a)
+car::Anova(glmmTMB(fin_len ~ treatment*sex*day_num + (1+day_num|rep/id2), data = findat  %>% filter(day_num != "3" & day_num != "7 "& day_num != "15"), REML = T,
+                   contrasts=list(treatment="contr.sum",
+                                  sex="contr.sum")), type = "III")
+
 #two-way
-m4 <- glmmTMB(fin_len ~ treatment + sex + day_num + treatment:sex + treatment:day_num + sex:day_num + (1+day_num|rep/id2), data = findat  %>% filter(day_num != "3" & day_num != "7 "& day_num != "15"), REML = T)
-summary(m4)
-car::Anova(m4, type = "III")
-emtrends(m4, specs = pairwise~treatment, var = "day_num", type = "response", adjust = "none")
-emtrends(m4, specs = pairwise~sex, var = "day_num", type = "response", adjust = "none")
-tab_model(m4,transform = NULL, show.ci = F, show.se = T, show.r2 = F, show.stat = T, show.icc = F)
+m4b <- glmmTMB(fin_len ~ treatment + sex + day_num + treatment:sex + treatment:day_num + sex:day_num + (1+day_num|rep/id2), data = findat  %>% filter(day_num != "3" & day_num != "7 "& day_num != "15"), REML = T)
+summary(m4b)
+emtrends(m4b, specs = pairwise~treatment, var = "day_num", type = "response")
+emtrends(m4b, specs = pairwise~sex, var = "day_num", type = "response")
+tab_model(m4b,transform = NULL, show.ci = F, show.se = T, show.r2 = F, show.stat = T, show.icc = F)
 
 #male-one
 m5 <- glmmTMB(fin_len ~ treatment + day_num  + (1+day_num|rep/id2), data = findat %>% filter(sex == "male") %>% filter(day_num != "3" & day_num != "7" & day_num != "15"), REML = T)
 summary(m5)
-car::Anova(m5, type = "III")
-emtrends(m5, specs = pairwise~treatment, var = "day_num", type = "response", adjust = "none")
 
 #female-two
 #wont converge with BFGS with both random effects - change ot just indvidual.
 m6 <- glmmTMB(fin_len ~ treatment*day_num  +  (1|rep) + (1+day_num|id2), data = findat %>% filter(sex == "female") %>% filter(day_num != "3" & day_num != "7" & day_num != "15"), REML = T)
 summary(m6)
-car::Anova(m6, type = "III")
-emtrends(m6, specs = pairwise~treatment, var = "day_num", type = "response", adjust = "none")
+emtrends(m6, specs = pairwise~treatment, var = "day_num", type = "response")
 tab_model(m6,transform = NULL, show.ci = F, show.se = T, show.r2 = F, show.stat = T, show.icc = F)
+
+#check with (1|day_num:rep/id2) model
+m6b <- glmmTMB(fin_len ~ treatment*day_num  +  (1|day_num:rep/id2), data = findat %>% filter(sex == "female") %>% filter(day_num != "3" & day_num != "7" & day_num != "15"), REML = T)
+summary(m6b)
+
+#aic lower in m6 (299), with slope on id only (328.1). 
+
 
 #GGEffect Graphs########
 labs1 <- c("3", "7","15")
 labs2 <- c("21", "28", "35")
 
 #for graphing
-m1a <- glmmTMB(fin_len ~ treatment*day_num  + (1+day_num|rep/id2), data = findat %>% filter(sex == "female") %>% filter(day_num == "3" | day_num == "7" |day_num == "15" ), REML = T)
+m1a <- glmmTMB(fin_len ~ treatment*day_num  + (1+day_num|rep/id2), data = findat %>% filter(sex == "female") %>% filter(day_num == "3" | day_num == "7" |day_num == "15" ), REML = T,
+               control=glmmTMBControl(optimizer=optim,
+                                        optArgs=list(method="BFGS")))
 m1b <- glmmTMB(fin_len ~ treatment*day_num  + (1+day_num|rep/id2), data = findat %>% filter(sex == "male")  %>% filter(day_num == "3" | day_num == "7" |day_num == "15" ), REML = T)
-m1c <- glmmTMB(fin_len ~ treatment*day_num  + (1+day_num|rep/id2), data = findat %>% filter(sex == "male") %>% filter(day_num != "3" & day_num != "7" & day_num != "15"), REML = T)
-m1d <- glmmTMB(fin_len ~ treatment*day_num  +  (1+day_num|rep/id2), data = findat %>% filter(sex == "female") %>% filter(day_num != "3" & day_num != "7" & day_num != "15"), REML = T)
+m1c <- glmmTMB(fin_len ~ treatment*day_num  + (1+day_num|rep/id2), data = findat %>% filter(sex == "male") %>% filter(day_num != "3" & day_num != "7" & day_num != "15"), REML = T, 
+               control=glmmTMBControl(optimizer=optim,
+                                        optArgs=list(method="BFGS")))
+m1d <- glmmTMB(fin_len ~ treatment*day_num  +  (1|rep) + (1+day_num|id2), data = findat %>% filter(sex == "female") %>% filter(day_num != "3" & day_num != "7" & day_num != "15"), REML = T)
 
 
 FemFast <- as.tibble(ggeffects:: ggemmeans(m1a, terms = c("day_num", "treatment"))) %>%
@@ -143,16 +156,19 @@ g2 <- ggplot(TotPost, aes(x = x, y = predicted, colour = group, linetype = group
 
 g1/g2 + plot_layout(guides = "collect") + plot_annotation(tag_levels = 'A') & theme(legend.position = 'bottom') 
 
-ggplot2::ggsave("FinGrowth.png", width = 8, height = 8, device = "png", dpi= 600, path = NULL)
-
-
 ##############################
 # Reproduction
 ##############################
 
 #load data
-reprodat <- read_csv("ReproductionLong.csv") %>%
-  janitor::clean_names()
+reprodat <- read_csv("Dryad_ReproWide.csv") %>%
+  janitor::clean_names() %>%
+  pivot_longer(cols = 6:10, names_to = "day_name", values_to = "total_no") %>%
+  mutate(day_14 = case_when(day_name == "x7" ~ 7,
+                            day_name == "x15" ~ 15,
+                            day_name == "x21" ~ 21,
+                            day_name == "x28" ~ 28,
+                            day_name == "x35" ~ 35))
 
 #ASR fasting#####
 
@@ -164,12 +180,20 @@ reprodat <- read_csv("ReproductionLong.csv") %>%
   #then rerun emmeans with bias adjuastment
     #emmeans(m7, specs = pairwise ~ treatment, type = "response",  bias.adjust = T, sigma = bias_model)
 
+#three-way
+m7a <- glmmTMB(total_no ~ day_14*treatment*sex + (1|replicate/id), data = reprodat %>% filter(day_14 == "7" | day_14 == "15"), family = "nbinom2", zi = ~1, REML = T)
+summary(m7a)
+
+car::Anova(glmmTMB(total_no ~ day_14*treatment*sex + (1|replicate/id), data = reprodat %>% filter(day_14 == "7" | day_14 == "15"), family = "nbinom2", zi = ~1, REML = T,
+                   contrasts=list(treatment="contr.sum",
+                                  sex="contr.sum")), type = "III")
 
 #female-one
 m7 <- glmmTMB(total_no ~ day_14 + treatment + (1|replicate/id), data = reprodat %>% filter(sex == "Female") %>% filter(day_14 == "7" | day_14 == "15"), family = "nbinom2", zi = ~1, REML = T)
 summary(m7)
-car::Anova(m7, type = "III")
+
 emmeans(m7, specs = pairwise ~ treatment, type = "response")
+
 tab_model(m7,transform = NULL, show.ci = F, show.se = T, show.r2 = F, show.stat = T, show.icc = F)
 
 #ASR refeeding#####
@@ -177,10 +201,10 @@ tab_model(m7,transform = NULL, show.ci = F, show.se = T, show.r2 = F, show.stat 
 #female-one
 m8 <- glmmTMB(total_no ~ day_14 + treatment + (1|replicate/id), data = reprodat %>% filter(sex == "Female") %>% filter(day_14 != "7" & day_14 != "15"), family = "nbinom2", zi = ~1, REML = T )
 summary(m8)
-car::Anova(m8, type = "III")
-emmeans(m8, specs = pairwise ~ treatment, type = "response")
-tab_model(m8,transform = NULL, show.ci = F, show.se = T, show.r2 = F, show.stat = T, show.icc = F)
 
+emmeans(m8, specs = pairwise ~ treatment, type = "response")
+
+tab_model(m8,transform = NULL, show.ci = F, show.se = T, show.r2 = F, show.stat = T, show.icc = F)
 
 #GGEffect Graphs########
 
@@ -250,7 +274,21 @@ ggplot2::ggsave("ASR.png", width = 8, height = 8, device = "png", dpi= 600, path
 # LRS
 ##############################
 
-#LRS fasting#####
+#for fasting
+reprodatwidefast <- read_csv("Dryad_ReproWide.csv") %>%
+  janitor::clean_names() %>%
+  mutate(totrep = rowSums(.[6:7]))
+
+#for post-fasting
+reprodatwidepost <- read_csv("Dryad_ReproWide.csv") %>%
+  janitor::clean_names() %>%
+  mutate(totrep = rowSums(.[8:10]))
+
+#LRS main effects fast#####
+
+m4b <- glmmTMB(totrep ~ treatment + sex + (1|replicate), zi = ~1, family = "nbinom2", data = reprodatwidefast, REML = T)
+summary(m4b)
+emmeans(m4b, pairwise ~ treatment, type = "response")
 
 #male-one
 m9 <- glmmTMB(totrep ~ treatment + (1|replicate), zi = ~1, family = "nbinom2", data = reprodatwidefast %>% filter(sex == "Male"), REML = T)
@@ -334,23 +372,22 @@ ggplot2::ggsave("LRSRepr.png", width = 8, height = 8, device = "png", dpi= 600, 
 ##############################
 
 #load data
-ehDat1 <- read_csv("Survival.csv") %>%
-  janitor::clean_names()
+ehDat1 <- read_csv("Dryad_OffspringSurv.csv") %>%
+  janitor::clean_names() %>%
+  
 
 #Survival fasting######
 
 #male-two
 m13 <- glmmTMB(lifespan ~ treatment*day +  (1|replicate/id), family = "binomial", data = ehDat1 %>% filter(sex == "Male") %>% filter(day == "7" | day == "15"), REML = T)
 summary(m13)
-car::Anova(m13, type = "III")
-emtrends(m13, specs = pairwise~treatment, var = "day", type = "response", adjust = "none") 
+emtrends(m13, specs = pairwise~treatment, var = "day", type = "response") 
 tab_model(m13 ,transform = NULL, show.ci = F, show.se = T, show.r2 = F, show.stat = T, show.icc = F)
 
 #female-two
 m14 <- glmmTMB(lifespan ~ treatment*day +  (1|replicate/id), family = "binomial", data = ehDat1 %>% filter(sex == "Female") %>% filter(day == "7" | day == "15"), REML = T)
 summary(m14)
-car::Anova(m14, type = "III")
-emtrends(m14, specs = pairwise~treatment, var = "day", type = "response", adjust = "none")
+emtrends(m14, specs = pairwise~treatment, var = "day", type = "response")
 tab_model(m14 ,transform = NULL, show.ci = F, show.se = T, show.r2 = F, show.stat = T, show.icc = F)
 
 #Survival refeeding######
@@ -430,35 +467,37 @@ ggplot2::ggsave("Egg Prob.png", width = 8, height = 8, device = "png", dpi= 600,
 ##############################
 
 #load data
-spermdat <- read_csv("Sperm.csv") %>%
-  janitor::clean_names()
+spermdat <- read_csv("Dryad_Sperm.csv") %>%
+  janitor::clean_names() %>%
+  mutate(treat=fct_relevel(treat,c("Fed", "Fasted"))) %>%
+  arrange(treat)
 
 #Sperm fasting######
 
 #VLC-two
-m17 <- glmmTMB(log(VCL) ~ Treat*Day + block + (1|fish_id), family = gaussian, data = spermdat %>% filter(Day == "7"|Day == "15"), REML = T)
+m17 <- glmmTMB(log(vcl) ~ treat*day + block + (1|fish_id), family = gaussian, data = spermdat %>% filter(day == "7"|day == "15"), REML = T)
 summary(m17) 
-emtrends(m17, specs = pairwise~Treat, var = "Day", type = "response", adjust = "none")
+emtrends(m17, specs = pairwise~treat, var = "day", type = "response")
 tab_model(m17 ,transform = NULL, show.ci = F, show.se = T, show.r2 = F, show.stat = T, show.icc = F)
 
 #VAP-two
-m18 <- glmmTMB(log(VAP) ~ Treat*Day + block + (1|fish_id), family = gaussian, data = spermdat %>% filter(Day == "7"|Day == "15"), REML = T)
+m18 <- glmmTMB(log(vap) ~ treat*day + block + (1|fish_id), family = gaussian, data = spermdat %>% filter(day == "7"|day == "15"), REML = T)
 summary(m18) 
-emtrends(m18, specs = pairwise~Treat, var = "Day", type = "response", adjust = "none")
+emtrends(m18, specs = pairwise~treat, var = "day", type = "response")
 tab_model(m18 ,transform = NULL, show.ci = F, show.se = T, show.r2 = F, show.stat = T, show.icc = F)
 
 #Sperm refeeding#####
 
 #VLC-two
-m19 <- glmmTMB(log(VCL) ~ Treat*Day + block + (1|fish_id), family = gaussian, data = spermdat %>% filter(Day != "7" & Day != "15"), REML = T)
+m19 <- glmmTMB(log(vcl) ~ treat*day + block + (1|fish_id), family = gaussian, data = spermdat %>% filter(day != "7" & day != "15"), REML = T)
 summary(m19)  
-emtrends(m19, specs = pairwise~Treat, var = "Day", type = "response", adjust = "none")
+emtrends(m19, specs = pairwise~treat, var = "day", type = "response")
 tab_model(m19 ,transform = NULL, show.ci = F, show.se = T, show.r2 = F, show.stat = T, show.icc = F)
 
 #VAP-two
-m20 <- glmmTMB(log(VAP) ~ Treat*Day + block + (1|fish_id), family = gaussian, data = spermdat %>% filter(Day != "7" & Day != "15"), REML = T)
+m20 <- glmmTMB(log(vap) ~ treat*day + block + (1|fish_id), family = gaussian, data = spermdat %>% filter(day != "7" & day != "15"), REML = T)
 summary(m20)
-emtrends(m20, specs = pairwise~Treat, var = "Day", type = "response", adjust = "none")
+emtrends(m20, specs = pairwise~treat, var = "day", type = "response")
 tab_model(m20 ,transform = NULL, show.ci = F, show.se = T, show.r2 = F, show.stat = T, show.icc = F)
 
 #GGEffect Graphs########
@@ -522,15 +561,37 @@ ggplot2::ggsave("Sperm.png", width = 8, height = 8, device = "png", dpi= 600, pa
 ##############################
 
 #load data
-dat <- read_csv("FryGrowth.csv") %>%
-  janitor::clean_names()
+dat <- read_csv("Dryad_FryGrowth.csv",
+                col_types = cols(rep = col_factor(levels = c("1", "2", "3", "4", "5a", "5b")))) %>%
+  janitor::clean_names() 
+
+#datwide 
+datwide <- dat %>%
+  pivot_wider(names_from = dpf, values_from = c(len_mm, time), id_cols = c(id, treat,sex2, rep)) %>%
+  mutate(hours = 48-(time_3-time_5)) %>%
+  mutate(growth = len_mm_5-len_mm_3) %>%
+  mutate(growth_day = round(growth/hours, 5)) %>%
+  filter(!is.na(growth)) %>%
+  filter(!is.na(sex2)) %>%
+  filter(!is.na(growth_day)) %>%
+  convert(fct(sex2)) %>%
+  mutate(treat_graph = treat) 
 
 #FryGrowth Per Day#######
+#three-way
+
+m21a <- glmmTMB(len_mm ~ treat + dpf + sex + treat:dpf + treat:sex + sex:dpf + sex:dpf:treat +  (1|rep/id), 
+               family = "gaussian", data = dat, REML = T)
+summary(m21a)
+
+car::Anova(glmmTMB(len_mm ~ treat + dpf + sex + treat:dpf + treat:sex + sex:dpf + sex:dpf:treat +  (1|rep/id), 
+                   family = "gaussian", data = dat, REML = T,
+                   contrasts=list(treat="contr.sum",
+                                  sex="contr.sum")), type = "III")
 
 #two-way
 m21 <- glmmTMB(len_mm ~ treat + dpf + sex + treat:dpf + treat:sex + sex:dpf + (1|rep/id), family = "gaussian", data = dat, REML = T)
 summary(m21)
-car::Anova(m21, type = "III")
 emtrends(m21, specs = pairwise~sex, var = "dpf", type = "response")
 emtrends(m21, specs =pairwise ~treat, var = "dpf", type = "response")
 tab_model(m21,transform = NULL, show.ci = F, show.se = T, show.r2 = F, show.stat = T, show.icc = F)
@@ -538,14 +599,12 @@ tab_model(m21,transform = NULL, show.ci = F, show.se = T, show.r2 = F, show.stat
 #male-two
 m22 <- glmmTMB(len_mm ~ treat + dpf + treat:dpf + (1|rep/id), family = "gaussian", data = dat %>% filter(sex == "male"), REML = T)
 summary(m22)
-car::Anova(m22, type = "III")
 emtrends(m22, specs = pairwise~treat, var = "dpf", type = "response")
 tab_model(m22,transform = NULL, show.ci = F, show.se = T, show.r2 = F, show.stat = T, show.icc = F)
 
 #female-two
 m23 <- glmmTMB(len_mm ~ treat + dpf + treat:dpf + (1|rep/sample), family = "gaussian", data = dat %>% filter(sex == "female"), REML = T)
 summary(m23)
-car::Anova(m23, type = "III")
 emtrends(m23, specs = pairwise~treat, var = "dpf", type = "response")
 tab_model(m23,transform = NULL, show.ci = F, show.se = T, show.r2 = F, show.stat = T, show.icc = F)
 
@@ -575,10 +634,16 @@ g1 <- ggplot(TotFast, aes(x = x, y = predicted, colour = group, linetype = group
 
 #FryGrowth Per Hour#######
 
+#three-way
+m24a <- glmmTMB(growth_day ~ treat + sex2 + treat:sex2 + rep, family = "gaussian", data = datwide, REML = T)
+summary(m24a)
+car::Anova( glmmTMB(growth_day ~ treat + sex2 + treat:sex2 + rep, family = "gaussian", data = datwide, REML = T,
+                    contrasts=list(treat="contr.sum",
+                                   sex2="contr.sum")), type = "III")
+
 #One-way
 m24 <- glmmTMB(growth_day ~ treat + sex2 + rep, family = "gaussian", data = datwide, REML = T)
 summary(m24)
-car::Anova(m24, type = "III")
 emmeans(m24, specs = pairwise~sex2, type = "response")
 emmeans(m24, specs = pairwise~treat, type = "response")
 tab_model(m24,transform = NULL, show.ci = F, show.se = T, show.r2 = F, show.stat = T, show.icc = F, digits = 5)
